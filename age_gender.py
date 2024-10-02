@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
+from tensorflow.keras.models import load_model
 
 def faceBox(faceNet, frame):
     blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), [104, 117, 123], False, False)
-    net = faceNet.setInput(blob)
+    faceNet.setInput(blob)
     detection = faceNet.forward()
     bbox = []   
     for i in range(detection.shape[2]):
@@ -19,20 +20,14 @@ def faceBox(faceNet, frame):
 faceProto = "opencv_face_detector.pbtxt"
 faceModel = "opencv_face_detector_uint8.pb"
 
-ageProto = "age_deploy.prototxt"
-ageModel = "age_net.caffemodel"
-
-genderProto = "gender_deploy.prototxt"
-genderModel = "gender_net.caffemodel"
-
-# Load models
+# Load face detection model
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
-ageNet = cv2.dnn.readNet(ageModel, ageProto)
-genderNet = cv2.dnn.readNet(genderModel, genderProto)
 
-# Age and gender lists
-ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
-genderList = ['Male', 'Female']
+# Load your TensorFlow model
+model = load_model('age_gender_detection.h5')
+
+# Gender and age dictionaries (customize based on your model's output)
+gender_dict = {0: 'Male', 1: 'Female'}
 
 # Start video capture
 video = cv2.VideoCapture(0)
@@ -59,20 +54,24 @@ while True:
     # Process each detected face
     for bbox in bboxs:
         face = frame[max(0, bbox[1]):min(bbox[3], frame.shape[0]), max(0, bbox[0]):min(bbox[2], frame.shape[1])]
-        blob = cv2.dnn.blobFromImage(face, 1.0, (227, 227), (78.4263377603, 87.7689143744, 114.895847746), swapRB=False)
         
-        # Predict gender
-        genderNet.setInput(blob)
-        genderPred = genderNet.forward()
-        gender = genderList[genderPred[0].argmax()]
+        # Preprocess the face for the TensorFlow model
+        face_gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
+        face_resized = cv2.resize(face_gray, (128, 128))  # Resize to 128x128
+        face_resized = face_resized.reshape(1, 128, 128, 1)  # Reshape to match model's input shape
+        face_resized = face_resized / 255.0  # Normalize pixel values
         
-        # Predict age
-        ageNet.setInput(blob)
-        agePred = ageNet.forward()
-        age = ageList[agePred[0].argmax()]
+        # Make predictions with the TensorFlow model
+        pred = model.predict(face_resized)
         
-        # Display gender and age on the frame
-        cv2.putText(frame, f"{gender}, {age}", (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
+        # Assuming gender prediction is a softmax with two classes (Male/Female), use np.argmax to find the class
+        pred_gender = gender_dict[np.argmax(pred[0])]  # Gender is predicted in the first output
+        
+        # For age prediction, it's usually a scalar, so just access it directly
+        pred_age = (pred[1][0])  # Age is predicted in the second output
+        
+        # Display the predicted gender and age
+        cv2.putText(frame, f"{pred_gender}, {pred_age} years", (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
 
     # Show the frame with face boxes and additional information
     cv2.imshow('Video', frame)
