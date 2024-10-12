@@ -23,25 +23,35 @@ if not os.path.exists(output_dir):
 # JSON file to store unique face embeddings
 faces_data_file = "faces_data.json"
 
-# Create the JSON file if it doesn't exist
+# JSON file to store uploaded face images
+uploaded_faces_file = "uploaded_faces.json"
+
+# Create the JSON files if they don't exist
 if not os.path.exists(faces_data_file):
     with open(faces_data_file, 'w') as f:
         json.dump([], f)
 
-# Function to load unique faces data from JSON
-def load_faces_data(file):
-    """Load the unique faces data from a JSON file."""
+if not os.path.exists(uploaded_faces_file):
+    with open(uploaded_faces_file, 'w') as f:
+        json.dump([], f)
+
+# Function to load data from JSON
+def load_json(file):
+    """Load data from a JSON file."""
     with open(file, 'r') as f:
         return json.load(f)
 
-# Function to save unique faces data to JSON
-def save_faces_data(file, faces_data):
-    """Save the unique faces data to a JSON file."""
+# Function to save data to JSON
+def save_json(file, data):
+    """Save data to a JSON file."""
     with open(file, 'w') as f:
-        json.dump(faces_data, f)
+        json.dump(data, f)
 
 # Load the initial unique faces data from the JSON file
-unique_faces_data = load_faces_data(faces_data_file)
+unique_faces_data = load_json(faces_data_file)
+
+# Load the initial uploaded faces data from the JSON file
+uploaded_faces_data = load_json(uploaded_faces_file)
 
 # Function to calculate Euclidean distance between face embeddings
 def compare_faces(known_face_encodings, face_encoding, threshold=0.6):
@@ -52,11 +62,13 @@ def compare_faces(known_face_encodings, face_encoding, threshold=0.6):
 def upload_to_firebase(directory):
     """Upload all saved face images to Firebase storage."""
     for filename in os.listdir(directory):
-        if filename.endswith(".jpg"):
+        if filename.endswith(".jpg") and filename not in uploaded_faces_data:
             file_path = os.path.join(directory, filename)
             blob = bucket.blob(f"faces/{filename}")
             blob.upload_from_filename(file_path)
             print(f"Uploaded {filename} to Firebase.")
+            uploaded_faces_data.append(filename)
+            save_json(uploaded_faces_file, uploaded_faces_data)
 
 # Start video capture
 video = cv2.VideoCapture(0)
@@ -102,7 +114,7 @@ while True:
             unique_faces_data.append(face_data)
 
             # Save the face data to the JSON file
-            save_faces_data(faces_data_file, unique_faces_data)
+            save_json(faces_data_file, unique_faces_data)
 
             # Save the unique face as an image
             top, right, bottom, left = face_location
