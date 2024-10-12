@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model #type: ignore
 
 def faceBox(faceNet, frame):
     blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), [104, 117, 123], False, False)
@@ -9,7 +9,7 @@ def faceBox(faceNet, frame):
     bbox = []   
     for i in range(detection.shape[2]):
         confidence = detection[0, 0, i, 2]
-        if confidence > 0.7:
+        if confidence >= 0.6:
             box = detection[0, 0, i, 3:7] * np.array([frame.shape[1], frame.shape[0], frame.shape[1], frame.shape[0]])
             (x, y, x1, y1) = box.astype("int")
             bbox.append((x, y, x1, y1))
