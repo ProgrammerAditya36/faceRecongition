@@ -8,3 +8,4 @@ firebase.json
 faces_data.json
 captured_faces/
 uploaded_faces.json
+server/
