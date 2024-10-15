@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import base64
 
-API_ENDPOINT = "https://face-recognition-server-rk7r.onrender.com/process_face"
+API_ENDPOINT = "http://34.172.8.251/process_face"
 
 # Start video capture
 video = cv2.VideoCapture(0)
